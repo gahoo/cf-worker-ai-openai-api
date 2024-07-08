@@ -21,17 +21,25 @@ export default {
       return new Response('Bad Request: Invalid JSON', { status: 400 });
     }
 
-    if (!requestBody.model || !requestBody.messages || !Array.isArray(requestBody.messages)) {
-      return new Response('Bad Request: Missing required fields', { status: 400 });
-    }
+//    if (!requestBody.model || !requestBody.messages || !Array.isArray(requestBody.messages)) {
+//      return new Response('Bad Request: Missing required fields', { status: 400 });
+//    }
 
     try {
       if (requestBody.stream === true) {
         // Streaming response
-        const stream = await env.AI.run(requestBody.model, {
-          messages: requestBody.messages,
-          stream: true,
-        });
+        let payload={};
+
+        if(requestBody.prompt === undefined){
+          payload.messages = requestBody.messages
+        }else{
+          payload.prompt = requestBody.prompt
+          payload.raw = true
+          payload.stop = requestBody.stop
+        }
+        payload.stream = true
+        const stream = await env.AI.run(requestBody.model, payload);
+
 
         const transformedStream = new ReadableStream({
           async start(controller) {
@@ -57,9 +65,7 @@ export default {
         });
       } else {
         // Non-streaming response
-        const response = await env.AI.run(requestBody.model, {
-          messages: requestBody.messages,
-        });
+        const response = await env.AI.run(requestBody.model, requestBody);
 
         const openAIResponse = formatResponse(response, requestBody.model);
         return Response.json(openAIResponse);
@@ -127,5 +133,6 @@ function getApiKey(request) {
     return authHeader.slice(7)
   }
   
+  // 如果没有Bearer token，则尝试获取X-API-Key
   return request.headers.get('api-key')
 }
